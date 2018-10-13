@@ -1,0 +1,56 @@
+image: java:8
+stages:
+#  - build
+  - deploy
+#build:
+#  stage: build
+#  script:
+#    - echo "running in TEST stage ..."
+variables:
+    SBT_VERSION: "0.13.11"
+    SBT_OPTS: "-Dsbt.global.base=sbt-cache/.sbtboot -Dsbt.boot.directory=sbt-cache/.boot -Dsbt.ivy.home=sbt-cache/.ivy"
+cache:
+  key: "$CI_BUILD_REF_NAME" # contains either the branch or the tag, so it's caching per branch
+  untracked: true
+  paths:
+    - "sbt-cache/.ivy.cache"
+    - "sbt-cache/.boot"
+    - "sbt-cache/.sbtboot"
+    - "sbt-cache/target"
+staging:
+  stage: deploy
+  only:
+    - dev
+  environment: staging
+  before_script:
+    # Create VERSION_NAME
+    ## Set TIME ZONE
+    - TZ=Asia/Ho_Chi_Minh
+    - ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
+    ## Set VERSION_NAME
+    - export VERSION_NAME=$(date +'%Y%m%d%H%M%S')
+    - echo "VERSION_NAME is green-blue-STAGING-${VERSION_NAME}"
+    - apt-get update -y
+    # Install SBT
+    - echo "deb http://dl.bintray.com/sbt/debian /" | tee -a /etc/apt/sources.list.d/sbt.list
+    - apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 642AC823
+    - apt-get update -y
+    - apt-get install sbt -y
+    # Change BUILD VERSION
+    - sed -i 's/BUILD_VERSION/'"STAGING-${VERSION_NAME}"'/g' build.sbt
+    - sed -i 's/BUILD_VERSION/'"green-blue-STAGING-${VERSION_NAME}"'/g' public/javascripts/zxcvbnShim.js
+    - sbt dist
+    # Setup SSH
+    - 'which ssh-agent || ( apt-get update -y && apt-get install openssh-client -y )'
+    # Run ssh-agent (inside the build environment)
+    - eval $(ssh-agent -s)
+    # Add the SSH key stored in SSH_PRIVATE_KEY variable to the agent store
+    - ssh-add <(echo "$SSH_PRIVATE_KEY")
+    - mkdir -p ~/.ssh
+    - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    # Send FILE to remote server
+    - scp target/universal/green-blue-STAGING-${VERSION_NAME}.zip root@133.18.199.250:/root/web/green-blue-cicd/version
+  script:
+    - echo "DEPLOY to STAGING server ..."
+    # Deploy
+    - ssh root@133.18.199.250 "sh /root/web/green-blue-cicd/script/deploy.sh green-blue-STAGING-${VERSION_NAME}"
