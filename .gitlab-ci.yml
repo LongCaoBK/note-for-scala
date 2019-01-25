@@ -49,8 +49,8 @@ staging:
     - mkdir -p ~/.ssh
     - '[[ -f /.dockerenv ]] && echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
     # Send FILE to remote server
-    - scp target/universal/green-blue-STAGING-${VERSION_NAME}.zip root@133.18.199.250:/root/web/green-blue-cicd/version
+    - scp target/universal/green-blue-STAGING-${VERSION_NAME}.zip root@133.xx.xxx.xxx:/root/web/green-blue-cicd/version
   script:
     - echo "DEPLOY to STAGING server ..."
     # Deploy
-    - ssh root@133.18.199.250 "sh /root/web/green-blue-cicd/script/deploy.sh green-blue-STAGING-${VERSION_NAME}"
+    - ssh root@133.xx.xxx.xxx "sh /root/web/green-blue-cicd/script/deploy.sh green-blue-STAGING-${VERSION_NAME}"
